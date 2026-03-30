@@ -69,6 +69,8 @@ int intel_enter_vmx_operation(EFI_PHYSICAL_ADDRESS vmxon_area)
     if (carry_flag)
     {
         print(L"VMX: VMXON failed\r\n");
+        write_cr0(old_cr0);
+        write_cr4(old_cr4);
         return 0;
     }
 
