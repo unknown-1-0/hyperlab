@@ -46,6 +46,7 @@ int intel_check_vmx_support(void)
 
 static uint64_t old_cr0 = 0;
 static uint64_t old_cr4 = 0;
+static EFI_PHYSICAL_ADDRESS vmxon_area_addr = 0;
 
 int intel_enter_vmx_operation(EFI_PHYSICAL_ADDRESS vmxon_area)
 {
@@ -73,7 +74,8 @@ int intel_enter_vmx_operation(EFI_PHYSICAL_ADDRESS vmxon_area)
         write_cr4(old_cr4);
         return 0;
     }
-
+    
+    vmxon_area_addr = vmxon_area;
     print(L"VMX: VMXON succeeded!\r\n");
     return 1;
 }
