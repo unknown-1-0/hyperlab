@@ -9,7 +9,7 @@ int intel_init_backend(EFI_SYSTEM_TABLE* SystemTable)
 {
     if (!intel_check_vmx_support())
     {
-        return 1;
+        return 0;
     }
 
     BootServices = SystemTable->BootServices;
@@ -21,18 +21,18 @@ int intel_init_backend(EFI_SYSTEM_TABLE* SystemTable)
     if (BootServices->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData, 1, &vmxon_area) != EFI_SUCCESS)
     {
         print(L"Failed to allocate a page for VMXON area\r\n");
-        return 1;
+        return 0;
     }
     
     if (!intel_enter_vmx_operation(vmxon_area))
     {
         BootServices->FreePages(vmxon_area, 1);
-        return 1;
+        return 0;
     }
 
 
 
-    return 0;
+    return 1;
 }
 
 

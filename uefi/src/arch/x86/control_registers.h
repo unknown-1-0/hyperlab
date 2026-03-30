@@ -51,5 +51,4 @@ static inline void __attribute__((always_inline)) write_cr4(uint64_t value)
     __asm__("mov %0, %%cr4"::"r"(value));
 }
 
-
 #endif

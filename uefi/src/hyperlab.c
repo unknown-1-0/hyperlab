@@ -42,7 +42,7 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
         goto error;
     }
 
-    if (!backend->init || backend->init(EFISystemTable))
+    if (!backend->init || !backend->init(EFISystemTable))
     {
         print(L"Backend initialization failed\r\n");
         goto error;
