@@ -44,6 +44,11 @@ int intel_check_vmx_support(void)
 #define MSR_IA32_VMX_CR4_FIXED0 0x488
 #define MSR_IA32_VMX_CR4_FIXED1 0x489
 
+uint32_t intel_vmx_get_vmcs_revision_id(void)
+{
+    return rdmsr(MSR_IA32_VMX_BASIC) & ((1UL<<31)-1);
+}
+
 static uint64_t old_cr0 = 0;
 static uint64_t old_cr4 = 0;
 static EFI_PHYSICAL_ADDRESS vmxon_area_addr = 0;
@@ -59,7 +64,7 @@ int intel_enter_vmx_operation(EFI_PHYSICAL_ADDRESS vmxon_area)
     // No need to worry about CR4.VMXE: it must be 1 in VMX operation, so it will be set here
     write_cr4((old_cr4 | rdmsr(MSR_IA32_VMX_CR4_FIXED0)) & rdmsr(MSR_IA32_VMX_CR4_FIXED1));
 
-    *(uint32_t*)vmxon_area = rdmsr(MSR_IA32_VMX_BASIC) & ((1UL<<31)-1);
+    *(uint32_t*)vmxon_area = intel_vmx_get_vmcs_revision_id();
 
     uint8_t carry_flag;
     __asm__(
@@ -74,7 +79,7 @@ int intel_enter_vmx_operation(EFI_PHYSICAL_ADDRESS vmxon_area)
         write_cr4(old_cr4);
         return 0;
     }
-    
+
     vmxon_area_addr = vmxon_area;
     print(L"VMX: VMXON succeeded!\r\n");
     return 1;
