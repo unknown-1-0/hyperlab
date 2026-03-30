@@ -19,4 +19,6 @@ static inline uint8_t __attribute__((always_inline)) vmxon(EFI_PHYSICAL_ADDRESS 
     return carry == 0;
 }
 
+extern EFI_BOOT_SERVICES* BootServices;
+
 #endif

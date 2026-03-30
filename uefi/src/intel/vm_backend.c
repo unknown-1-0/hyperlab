@@ -1,9 +1,10 @@
 #include <efi.h>
+#include <intel/vmcs.h>
 #include <intel/vmx.h>
 #include <print.h>
 #include <vm_backend.h>
 
-static EFI_BOOT_SERVICES* BootServices = NULL;
+EFI_BOOT_SERVICES* BootServices = NULL;
 
 int intel_init_backend(EFI_SYSTEM_TABLE* SystemTable)
 {
@@ -30,12 +31,42 @@ int intel_init_backend(EFI_SYSTEM_TABLE* SystemTable)
         return 0;
     }
 
+    return 1;
+}
 
+static EFI_PHYSICAL_ADDRESS cur_vmcs = 0;
+static int vm_created = 0;
+int intel_create_vm(void)
+{
+    if (!BootServices)
+    {
+        print(L"Intel backend not initialized yet!\r\n");
+        return 0;
+    }
+
+    if (vm_created)
+    {
+        print(L"VM is already created\r\n");
+        return 0;
+    }
+
+    if (BootServices->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData, 1, &cur_vmcs) != EFI_SUCCESS)
+    {
+        print(L"Failed to allocate a page for VMCS\r\n");
+        return 0;
+    }
+
+    if (!intel_init_vmcs(cur_vmcs))
+    {
+        print(L"VMCS initialization failed\r\n");
+        BootServices->FreePages(cur_vmcs, 1);
+        return 0;
+    }
 
     return 1;
 }
 
-
 struct vm_backend intel_vm_backend = {
-    .init = intel_init_backend
+    .init = intel_init_backend,
+    .create_vm = intel_create_vm
 };

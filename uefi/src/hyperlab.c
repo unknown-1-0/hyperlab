@@ -48,6 +48,12 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
         goto error;
     }
 
+    if (!backend->create_vm || !backend->create_vm())
+    {
+        print(L"Failed to create a new VM\r\n");
+        goto error;
+    }
+
     return EFI_SUCCESS;
 
 error:

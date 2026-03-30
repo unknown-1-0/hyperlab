@@ -3,7 +3,7 @@ TARGET_CFLAGS=-Wl,-entry:hyperlab_entry -Wl,-subsystem:efi_application -fuse-ld=
 CFLAGS=$(TARGET_CFLAGS) -Wall -Wextra -Wno-error=strict-prototypes -pedantic -Werror -masm=intel -I/usr/include/efi -I./src
 
 HYPERFUZZ_SRCS=src/hyperlab.c src/print.c src/vm_backends.c
-INTEL_SRCS=src/intel/vm_backend.c src/intel/vmx.c
+INTEL_SRCS=src/intel/vm_backend.c src/intel/vmx.c src/intel/vmcs.c
 
 OUT_IMG=hyperlab.img
 
