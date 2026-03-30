@@ -66,13 +66,7 @@ int intel_enter_vmx_operation(EFI_PHYSICAL_ADDRESS vmxon_area)
 
     *(uint32_t*)vmxon_area = intel_vmx_get_vmcs_revision_id();
 
-    uint8_t carry_flag;
-    __asm__(
-        "vmxon %1\n"
-        "setc %0\n"
-        :"=r"(carry_flag):"m"(vmxon_area):"flags");
-
-    if (carry_flag)
+    if (!vmxon(vmxon_area))
     {
         print(L"VMX: VMXON failed\r\n");
         write_cr0(old_cr0);
