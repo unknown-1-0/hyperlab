@@ -5,6 +5,8 @@
 
 #define MSR_IA32_VMX_PINBASED_CTLS 0x481
 #define MSR_IA32_VMX_PROCBASED_CTLS 0x482
+#define MSR_IA32_VMX_EXIT_CTLS 0x483
+#define MSR_IA32_VMX_ENTRY_CTLS 0x484
 #define MSR_IA32_VMX_PROCBASED_CTLS2 0x48b
 #define MSR_IA32_VMX_PROCBASED_CTLS3 0x492
 
@@ -34,7 +36,7 @@ int intel_vmcs_setup_control_fields(void)
 
         if ((result_value & (primary_procbased_ctls >> 32)) != result_value)
         {
-            print(L"VMCS: Could not set valid value of primary processor-based VM-execution controls\r\n");
+            print(L"VMCS: Could not set desired value of primary processor-based VM-execution controls\r\n");
             return 0;
         }
 
@@ -48,11 +50,45 @@ int intel_vmcs_setup_control_fields(void)
 
         if ((result_value & (secondary_procbased_ctls >> 32)) != result_value)
         {
-            print(L"VMCS: Could not set valid value of secondary processor-based VM-execution controls (EPT not supported?)\r\n");
+            print(L"VMCS: Could not set desired value of secondary processor-based VM-execution controls (EPT not supported?)\r\n");
             return 0;
         }
 
         VMWRITE(VMCS_SECONDARY_PROCBASED_VM_EXEC_CTLS, result_value);
+    }
+
+    {
+        uint64_t vm_exit_ctls = rdmsr(MSR_IA32_VMX_EXIT_CTLS);
+
+        uint32_t result_value = (uint32_t)vm_exit_ctls |
+            PRIMARY_VM_EXIT_CTLS_SAVE_DEBUG_CTLS | PRIMARY_VM_EXIT_CTLS_HOST_ADDRESS_SPACE_SIZE |
+            PRIMARY_VM_EXIT_CTLS_SAVE_IA32_PAT | PRIMARY_VM_EXIT_CTLS_LOAD_IA32_PAT |
+            PRIMARY_VM_EXIT_CTLS_SAVE_IA32_EFER | PRIMARY_VM_EXIT_CTLS_LOAD_IA32_EFER |
+            PRIMARY_VM_EXIT_CTLS_LOAD_IA32_PERF_GLOBAL_CTL; // | PRIMARY_VM_EXIT_CTLS_SAVE_IA32_PERF_GLOBAL_CTL;
+
+        if ((result_value & (vm_exit_ctls >> 32)) != result_value)
+        {
+            print(L"VMCS: Could not set desired value of primary VM-exit controls\r\n");
+            return 0;
+        }
+
+        VMWRITE(VMCS_PRIMARY_VM_EXIT_CTLS, result_value);
+    }
+
+    {
+        uint64_t vm_entry_ctls = rdmsr(MSR_IA32_VMX_ENTRY_CTLS);
+
+        uint32_t result_value = (uint32_t)vm_entry_ctls | VM_ENTRY_CTLS_LOAD_DEBUG_CTLS |
+            VM_ENTRY_CTLS_IA32E_MODE_GUEST | VM_ENTRY_CTLS_LOAD_IA32_PERF_GLOBAL_CTRL |
+            VM_ENTRY_CTLS_LOAD_IA32_PAT | VM_ENTRY_CTLS_LOAD_IA32_EFER;
+
+        if ((result_value & (vm_entry_ctls >> 32)) != result_value)
+        {
+            print(L"VMCS: Could not set desired value of VM-entry controls\r\n");
+            return 0;
+        }
+
+        VMWRITE(VMCS_VM_ENTRY_CTLS, result_value);
     }
 
     return 1;
