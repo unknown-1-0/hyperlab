@@ -91,6 +91,13 @@ int intel_vmcs_setup_control_fields(void)
         VMWRITE(VMCS_VM_ENTRY_CTLS, result_value);
     }
 
+    {
+        VMWRITE(VMCS_CR3_TARGET_COUNT, 0);
+        VMWRITE(VMCS_VM_EXIT_MSR_STORE_COUNT, 0);
+        VMWRITE(VMCS_VM_EXIT_MSR_LOAD_COUNT, 0);
+        VMWRITE(VMCS_VM_ENTRY_MSR_LOAD_COUNT, 0);
+    }
+
     return 1;
 }
 
