@@ -12,10 +12,11 @@
 
 #define VMWRITE(field, value) do \
 { \
-    if (!vmwrite(field, value)) \
+    uint64_t vmcs_field = (field); \
+    uint64_t vmcs_field_value = (value); \
+    if (!vmwrite(vmcs_field, vmcs_field_value)) \
     { \
-        /* TODO: Specify write of which field failed */ \
-        print(L"VMCS: VMWRITE failed\r\n"); \
+        printf(L"VMCS: VMWRITE of value 0x%x to field 0x%x failed\r\n", vmcs_field_value, vmcs_field); \
         return 0; \
     } \
 } while(0)
