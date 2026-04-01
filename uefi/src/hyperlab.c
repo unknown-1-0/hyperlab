@@ -1,7 +1,9 @@
-#include "vm_backend.h"
-#include "vm_backends.h"
+#include <arch/x86/idt.h>
+#include <handle_exception.h>
+#include <vm_backend.h>
+#include <vm_backends.h>
 #include <efi.h>
-#include "print.h"
+#include <print.h>
 #include <stdint.h>
 
 #define CPUID_01H_ECX_VMX (1<<5)
@@ -22,6 +24,14 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
 
     print_init(SystemTable);
     print(L"HyperLab UEFI initializing...\r\n");
+
+    if (!setup_idt(SystemTable))
+    {
+        print(L"Failed to initalize IDT\r\n");
+        status = EFI_LOAD_ERROR;
+        goto error;
+    }
+
 
     uint32_t ebx, ecx, edx;
     __asm__ volatile("cpuid":"=b"(ebx),"=c"(ecx),"=d"(edx):"a"(0));
@@ -58,5 +68,6 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
 
 error:
     SystemTable->BootServices->Stall(5000000);
+    restore_idt(SystemTable);
     return status;
 }
