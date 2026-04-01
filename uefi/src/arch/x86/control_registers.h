@@ -51,4 +51,16 @@ static inline void __attribute__((always_inline)) write_cr4(uint64_t value)
     __asm__("mov cr4, %0"::"r"(value):"flags");
 }
 
+static inline uint64_t __attribute__((always_inline)) read_cr8(void)
+{
+    uint64_t value;
+    __asm__("mov %0, cr8":"=r"(value)::"flags");
+    return value;
+}
+
+static inline void __attribute__((always_inline)) write_cr8(uint64_t value)
+{
+    __asm__("mov cr8, %0"::"r"(value):"flags");
+}
+
 #endif
