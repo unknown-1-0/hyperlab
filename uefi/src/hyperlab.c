@@ -1,4 +1,5 @@
 #include <arch/x86/control_registers.h>
+#include <arch/x86/gdt.h>
 #include <arch/x86/idt.h>
 #include <efi.h>
 #include <halt.h>
@@ -28,6 +29,8 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
 
     // Mask all interrupts to prevent them from causing #GPs
     write_cr8(15);
+
+    setup_gdt_and_tss();
 
     if (!setup_idt(SystemTable))
     {
