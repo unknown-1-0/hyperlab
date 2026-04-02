@@ -1,10 +1,11 @@
 #include <arch/x86/idt.h>
-#include <handle_exception.h>
-#include <vm_backend.h>
-#include <vm_backends.h>
 #include <efi.h>
+#include <halt.h>
+#include <handle_exception.h>
 #include <print.h>
 #include <stdint.h>
+#include <vm_backend.h>
+#include <vm_backends.h>
 
 #define CPUID_01H_ECX_VMX (1<<5)
 
@@ -18,7 +19,6 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
 
     SystemTable = EFISystemTable;
     
-    EFI_STATUS status = EFI_SUCCESS;
     SystemTable->BootServices->SetWatchdogTimer(0, 0, 0, NULL);
     SystemTable->ConOut->ClearScreen(SystemTable->ConOut);
 
@@ -28,8 +28,7 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
     if (!setup_idt(SystemTable))
     {
         print(L"Failed to initalize IDT\r\n");
-        status = EFI_LOAD_ERROR;
-        goto error;
+        halt();
     }
 
 
@@ -49,25 +48,21 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
     if (!backend)
     {
         print(L"Could not find VM backend for current CPU\r\n");
-        goto error;
+        halt();
     }
 
     if (!backend->init || !backend->init(EFISystemTable))
     {
         print(L"Backend initialization failed\r\n");
-        goto error;
+        halt();
     }
 
     if (!backend->create_vm || !backend->create_vm())
     {
         print(L"Failed to create a new VM\r\n");
-        goto error;
+        halt();
     }
 
-    return EFI_SUCCESS;
-
-error:
-    SystemTable->BootServices->Stall(5000000);
-    restore_idt(SystemTable);
-    return status;
+    halt();
+    __builtin_unreachable();
 }

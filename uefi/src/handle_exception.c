@@ -1,6 +1,7 @@
 #include <arch/x86/control_registers.h>
 #include <arch/x86/idt.h>
 #include <efi.h>
+#include <halt.h>
 #include <handle_exception.h>
 #include <print.h>
 #include <stdint.h>
@@ -71,16 +72,9 @@ void handle_exception(unsigned int exception_number, struct exception_handler_st
         es, iret_stack->cs, iret_stack->ss,ds, fs, gs);
 
 
-    printf(L"CR0=0x%x CR2=0x%x CR3=0x%x CR4=0x%x CR8=0x%x\r\n", read_cr0(), read_cr2(), read_cr3(), read_cr4(), read_cr8());
+    printf(L"CR0=0x%x CR2=0x%x CR3=0x%x\r\nCR4=0x%x CR8=0x%x\r\n", read_cr0(), read_cr2(), read_cr3(), read_cr4(), read_cr8());
 
-
-    while (1)
-    {
-        __asm__(
-            "cli\n"
-            "hlt\n"
-        );
-    }
+    halt();
 }
 
 void handle_divide_error(void);
@@ -131,7 +125,6 @@ static void (*exception_handlers[])(void) = {
     handle_control_protection_exception
 };
 
-static uint8_t old_idtr[sizeof(uint16_t)+sizeof(uint64_t)];
 static struct idt_entry* idt = NULL;
 
 int setup_idt(EFI_SYSTEM_TABLE* SystemTable)
@@ -147,9 +140,6 @@ int setup_idt(EFI_SYSTEM_TABLE* SystemTable)
     uint16_t code_segment;
     __asm__("mov %0, cs":"=r"(code_segment));
 
-    // Mask all interrupts. Prevents random #GPs
-    write_cr8(15);
-
     for (size_t i = 0; i < idt_entries; i++)
     {
         struct idt_entry* cur_entry = &idt[i];
@@ -160,7 +150,6 @@ int setup_idt(EFI_SYSTEM_TABLE* SystemTable)
         cur_entry->offset_middle = (uint16_t)(cur_handler >> 16);
         cur_entry->offset_high = cur_handler >> 32;
     }
-    __asm__ volatile("sidt %0":"=m"(old_idtr)::"memory");
     
     uint8_t new_idtr[sizeof(uint16_t)+sizeof(size_t)];
     *(volatile uint16_t*)new_idtr = idt_entries * sizeof(*idt) - 1;
@@ -168,15 +157,4 @@ int setup_idt(EFI_SYSTEM_TABLE* SystemTable)
 
     __asm__ volatile("lidt %0"::"m"(new_idtr));
     return 1;
-}
-
-void restore_idt(EFI_SYSTEM_TABLE* SystemTable)
-{
-    __asm__ volatile("lidt %0"::"m"(old_idtr));
-
-    SystemTable->BootServices->FreePool(idt);
-    idt = NULL;
-
-    // Unmask all interrupts
-    write_cr8(0);
 }
