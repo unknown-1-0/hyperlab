@@ -1,3 +1,4 @@
+#include <arch/x86/control_registers.h>
 #include <arch/x86/idt.h>
 #include <efi.h>
 #include <halt.h>
@@ -24,6 +25,8 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
 
     print_init(SystemTable);
     print(L"HyperLab UEFI initializing...\r\n");
+
+    write_cr8(15);
 
     if (!setup_idt(SystemTable))
     {
