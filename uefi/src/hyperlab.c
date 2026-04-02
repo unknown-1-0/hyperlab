@@ -26,6 +26,7 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
     print_init(SystemTable);
     print(L"HyperLab UEFI initializing...\r\n");
 
+    // Mask all interrupts to prevent them from causing #GPs
     write_cr8(15);
 
     if (!setup_idt(SystemTable))
