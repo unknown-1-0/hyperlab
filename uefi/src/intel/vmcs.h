@@ -47,7 +47,7 @@ static inline uint8_t __attribute__((always_inline)) vmread(uint64_t field, uint
     __asm__(
         "vmread %2, %3\n"
         "setc %0\n"
-        "setz %1\n":"=r"(carry),"=r"(zero):"rm"(*out_value),"r"(field):"flags");
+        "setz %1\n":"=r"(carry),"=r"(zero),"=rm"(*out_value):"r"(field):"flags");
 
     return ((zero | carry) == 0);
 }
