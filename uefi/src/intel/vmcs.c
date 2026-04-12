@@ -1,4 +1,6 @@
+#include <arch/x86/control_registers.h>
 #include <arch/x86/msr.h>
+#include <gdt.h>
 #include <intel/vmcs.h>
 #include <intel/vmx.h>
 #include <print.h>
@@ -46,7 +48,7 @@ int intel_vmcs_setup_control_fields(void)
 
     {
         uint64_t secondary_procbased_ctls = rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2);
-        uint32_t result_value = (uint32_t)secondary_procbased_ctls | 
+        uint32_t result_value = (uint32_t)secondary_procbased_ctls |
             SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_EPT;
 
         if ((result_value & (secondary_procbased_ctls >> 32)) != result_value)
@@ -98,13 +100,75 @@ int intel_vmcs_setup_control_fields(void)
         VMWRITE(VMCS_VM_EXIT_MSR_LOAD_COUNT, 0);
         VMWRITE(VMCS_VM_ENTRY_MSR_LOAD_COUNT, 0);
     }
-
     return 1;
 }
 
+#define MSR_IA32_FS_BASE 0xc0000100
+#define MSR_IA32_GS_BASE 0xc0000101
+
+#define MSR_IA32_SYSENTER_CS 0x174
+#define MSR_IA32_SYSENTER_ESP 0x175
+#define MSR_IA32_SYSENTER_EIP 0x176
+#define MSR_IA32_PERF_GLOBAL_CTRL 0x38f
+#define MSR_IA32_PAT 0x277
+#define MSR_IA32_EFER 0xc0000080
+
 int intel_vmcs_setup_host_state(void)
 {
-    return 0;
+    VMWRITE(VMCS_HOST_CR0, read_cr0());
+    VMWRITE(VMCS_HOST_CR3, read_cr3());
+    VMWRITE(VMCS_HOST_CR4, read_cr4());
+
+    VMWRITE(VMCS_HOST_FS_BASE, rdmsr(MSR_IA32_FS_BASE));
+    VMWRITE(VMCS_HOST_GS_BASE, rdmsr(MSR_IA32_GS_BASE));
+
+    {
+        uint8_t gdtr[sizeof(uint16_t)+sizeof(size_t)];
+        __asm__("sgdt %0":"=m"(gdtr)::"memory");
+
+        size_t gdt_base = *(size_t*)(gdtr+sizeof(uint16_t));
+
+        VMWRITE(VMCS_HOST_GDTR_BASE, gdt_base);
+    }
+
+    {
+        uint8_t idtr[sizeof(uint16_t)+sizeof(size_t)];
+        __asm__("sidt %0":"=m"(idtr)::"memory");
+
+        size_t idt_base = *(size_t*)(idtr+sizeof(uint16_t));
+
+        VMWRITE(VMCS_HOST_IDTR_BASE, idt_base);
+    }
+
+    VMWRITE(VMCS_HOST_TR_BASE, (size_t)(&new_tss));
+
+    VMWRITE(VMCS_HOST_IA32_SYSENTER_CS, rdmsr(MSR_IA32_SYSENTER_CS));
+    VMWRITE(VMCS_HOST_IA32_SYSENTER_ESP, rdmsr(MSR_IA32_SYSENTER_ESP));
+    VMWRITE(VMCS_HOST_IA32_SYSENTER_EIP, rdmsr(MSR_IA32_SYSENTER_EIP));
+    VMWRITE(VMCS_HOST_IA32_PERF_GLOBAL_CTRL, rdmsr(MSR_IA32_PERF_GLOBAL_CTRL));
+    VMWRITE(VMCS_HOST_IA32_PAT, rdmsr(MSR_IA32_PAT));
+    VMWRITE(VMCS_HOST_IA32_EFER, rdmsr(MSR_IA32_EFER));
+
+    // Host RIP and RSP are to be determined on VM-entry
+
+    uint16_t es, cs, ss, ds, fs, gs, tr;
+    __asm__ volatile("mov %0, es":"=rm"(es));
+    __asm__ volatile("mov %0, cs":"=rm"(cs));
+    __asm__ volatile("mov %0, ss":"=rm"(ss));
+    __asm__ volatile("mov %0, ds":"=rm"(ds));
+    __asm__ volatile("mov %0, fs":"=rm"(fs));
+    __asm__ volatile("mov %0, gs":"=rm"(gs));
+    __asm__ volatile("str %0":"=rm"(tr));
+
+    VMWRITE(VMCS_HOST_ES, es);
+    VMWRITE(VMCS_HOST_CS, cs);
+    VMWRITE(VMCS_HOST_SS, ss);
+    VMWRITE(VMCS_HOST_DS, ds);
+    VMWRITE(VMCS_HOST_FS, fs);
+    VMWRITE(VMCS_HOST_GS, gs);
+    VMWRITE(VMCS_HOST_TR, tr);
+
+    return 1;
 }
 
 int intel_vmcs_setup_guest_state(void)

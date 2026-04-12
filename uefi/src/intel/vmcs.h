@@ -67,6 +67,18 @@ static inline uint8_t __attribute__((always_inline)) vmwrite(uint64_t field, uin
 
 int intel_init_vmcs(EFI_PHYSICAL_ADDRESS vmcs);
 
+#define VMCS_HOST_ES 0xc00
+#define VMCS_HOST_CS 0xc02
+#define VMCS_HOST_SS 0xc04
+#define VMCS_HOST_DS 0xc06
+#define VMCS_HOST_FS 0xc08
+#define VMCS_HOST_GS 0xc0a
+#define VMCS_HOST_TR 0xc0c
+
+#define VMCS_HOST_IA32_PAT 0x2c00
+#define VMCS_HOST_IA32_EFER 0x2c02
+#define VMCS_HOST_IA32_PERF_GLOBAL_CTRL 0x2c04
+
 #define VMCS_PINBASED_VM_EXEC_CTLS 0x4000
 
 #define VMCS_PRIMARY_PROCBASED_VM_EXEC_CTLS 0x4002
@@ -110,5 +122,20 @@ int intel_init_vmcs(EFI_PHYSICAL_ADDRESS vmcs);
 #define VMCS_ORIGINAL_EVENT_ERROR_CODE 0x440a
 #define VMCS_VM_EXIT_INSTRUCTION_LENGTH 0x440c
 #define VMCS_VM_EXIT_INSTRUCTION_INFO 0x440e
+
+#define VMCS_HOST_IA32_SYSENTER_CS 0x4c00
+
+#define VMCS_HOST_CR0 0x6c00
+#define VMCS_HOST_CR3 0x6c02
+#define VMCS_HOST_CR4 0x6c04
+#define VMCS_HOST_FS_BASE 0x6c06
+#define VMCS_HOST_GS_BASE 0x6c08
+#define VMCS_HOST_TR_BASE 0x6c0a
+#define VMCS_HOST_GDTR_BASE 0x6c0c
+#define VMCS_HOST_IDTR_BASE 0x6c0e
+#define VMCS_HOST_IA32_SYSENTER_ESP 0x6c10
+#define VMCS_HOST_IA32_SYSENTER_EIP 0x6c12
+#define VMCS_HOST_RSP 0x6c14
+#define VMCS_HOST_RIP 0x6c16
 
 #endif
