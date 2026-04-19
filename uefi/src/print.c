@@ -4,16 +4,55 @@
 #include <stdint.h>
 
 static SIMPLE_TEXT_OUTPUT_INTERFACE* ConOut = NULL;
-void print_init(EFI_SYSTEM_TABLE* SystemTable)
-{
-    ConOut = SystemTable->ConOut;
-}
 
 void print(CHAR16* string)
 {
     ConOut->OutputString(ConOut, string);
 }
 
+void print_init(EFI_SYSTEM_TABLE* SystemTable)
+{
+    ConOut = SystemTable->ConOut;
+
+    UINTN rows = 0;
+    UINTN cols = 0;
+
+    uint64_t max_area = 0;
+    UINTN selected_mode = 0;
+    UINTN current_mode = 0;
+
+    while (1)
+    {
+        if (ConOut->QueryMode(ConOut, current_mode, &rows, &cols) != EFI_SUCCESS)
+        {
+            if (current_mode == 1)
+            {
+                current_mode++;
+                continue;
+            }
+
+            break;
+        }
+
+        uint64_t area = (uint64_t)rows * (uint64_t)cols;
+
+        if (area > max_area)
+        {
+            max_area = area;
+            selected_mode = current_mode;
+            printf(L"Candidate text mode: 0x%x (rows: 0x%x, cols: 0x%x, area: 0x%x)\r\n", (uint64_t)selected_mode, (uint64_t)rows, (uint64_t)cols, area);
+        }
+
+        current_mode++;
+    }
+
+    printf(L"Setting text mode 0x%x\r\n", selected_mode);
+    // Silently continue if we can't set the mode
+    if (ConOut->SetMode(ConOut, selected_mode) != EFI_SUCCESS)
+    {
+        print(L"Could not set the new text mode!\r\n");
+    }
+}
 void vsnprintf(CHAR16* out_buffer, size_t out_length, CHAR16* fmt, va_list varargs)
 {
     if (out_length == 0)
