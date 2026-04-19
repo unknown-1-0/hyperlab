@@ -1,4 +1,5 @@
 #include <arch/x86/control_registers.h>
+#include <arch/x86/debug_registers.h>
 #include <arch/x86/idt.h>
 #include <efi.h>
 #include <halt.h>
@@ -73,6 +74,7 @@ void handle_exception(unsigned int exception_number, struct exception_handler_st
 
 
     printf(L"CR0=0x%x CR2=0x%x CR3=0x%x\r\nCR4=0x%x CR8=0x%x\r\n", read_cr0(), read_cr2(), read_cr3(), read_cr4(), read_cr8());
+    printf(L"DR0=0x%x DR1=0x%x DR2=0%x DR3=0x%x\r\nDR6=0x%x DR7=0x%x\r\n", read_dr0(), read_dr1(), read_dr2(), read_dr3(), read_dr6(), read_dr7());
 
     halt();
 }
