@@ -61,7 +61,7 @@ void handle_exception(unsigned int exception_number, struct exception_handler_st
     printf(L"R12=0x%x R13=0x%x R14=0x%x R15=0x%x\r\n", stack->r12, stack->r13, stack->r14, stack->r15);
     printf(L"RIP=0x%x RFLAGS=0x%x\r\n", iret_stack->rip, iret_stack->rflags);
 
-    uint16_t es, ds, fs, gs;
+    uint64_t es, ds, fs, gs;
 
     __asm__("mov %0, es":"=r"(es));
     __asm__("mov %0, ds":"=r"(ds));
@@ -69,7 +69,7 @@ void handle_exception(unsigned int exception_number, struct exception_handler_st
     __asm__("mov %0, gs":"=r"(gs));
 
     printf(L"ES=0x%x CS=0x%x SS=0x%x\r\nDS=0x%x FS=0x%x GS=0x%x\r\n",
-        es, iret_stack->cs, iret_stack->ss,ds, fs, gs);
+        es, iret_stack->cs, iret_stack->ss, ds, fs, gs);
 
 
     printf(L"CR0=0x%x CR2=0x%x CR3=0x%x\r\nCR4=0x%x CR8=0x%x\r\n", read_cr0(), read_cr2(), read_cr3(), read_cr4(), read_cr8());
