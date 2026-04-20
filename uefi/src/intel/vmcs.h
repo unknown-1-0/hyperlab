@@ -85,6 +85,10 @@ int intel_init_vmcs(EFI_PHYSICAL_ADDRESS vmcs);
 #define VMCS_HOST_TR 0xc0c
 
 #define VMCS_EPT_PTR 0x201a
+#define EPT_PTR_MEMORY_TYPE_UC 0
+#define EPT_PTR_MEMORY_TYPE_WB 6
+#define EPT_PTR_PAGE_WALK_LENGTH(x) ((((size_t)(x)-1) & 7ULL) << 3)
+#define EPT_PTR_ENABLE_ACCESSED_DIRTY_FLAGS (1ULL<<6)
 
 #define VMCS_LINK_PTR 0x2800
 #define VMCS_GUEST_IA32_DEBUGCTL 0x2802
