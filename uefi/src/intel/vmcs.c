@@ -206,7 +206,7 @@ int intel_vmcs_setup_guest_state(void)
     VMWRITE(VMCS_LINK_PTR, ~0ULL);
 
     VMWRITE(VMCS_GUEST_CR0, read_cr0());
-    VMWRITE(VMCS_GUEST_CR3, read_cr3());
+    VMWRITE(VMCS_GUEST_CR3, 0);
     VMWRITE(VMCS_GUEST_CR4, read_cr4());
     VMWRITE(VMCS_GUEST_DR7, (1ULL<<10));
 
@@ -238,7 +238,7 @@ int intel_vmcs_setup_guest_state(void)
     VMWRITE(VMCS_GUEST_GS_LIMIT, 0xffffffffULL);
     VMWRITE(VMCS_GUEST_LDTR_LIMIT, 0);
     VMWRITE(VMCS_GUEST_TR_LIMIT, 0);
-    VMWRITE(VMCS_GUEST_GDTR_LIMIT, 8*3-1);
+    VMWRITE(VMCS_GUEST_GDTR_LIMIT, 0);
     VMWRITE(VMCS_GUEST_IDTR_LIMIT, 0);
 
     VMWRITE(VMCS_GUEST_ES_ACCESS_RIGHTS,
@@ -278,7 +278,7 @@ int intel_vmcs_setup_guest_state(void)
     VMWRITE(VMCS_GUEST_IA32_PAT, rdmsr(MSR_IA32_PAT));
     VMWRITE(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, 0);
 
-    // ! Do not forget to change these to appropriate values !
+    // ! Do not forget to change these to valid values !
     VMWRITE(VMCS_GUEST_RSP, 0);
     VMWRITE(VMCS_GUEST_RIP, 0);
     VMWRITE(VMCS_GUEST_RFLAGS, 2);
