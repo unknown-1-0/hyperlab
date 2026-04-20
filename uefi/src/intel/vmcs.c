@@ -51,7 +51,7 @@ int intel_vmcs_setup_control_fields(void)
     {
         uint64_t secondary_procbased_ctls = rdmsr(MSR_IA32_VMX_PROCBASED_CTLS2);
         uint32_t result_value = (uint32_t)secondary_procbased_ctls |
-            SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_EPT;
+            SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_EPT | SECONDARY_PROCBASED_VM_EXEC_CTLS_UNRESTRICTED_GUEST;
 
         if ((result_value & (secondary_procbased_ctls >> 32)) != result_value)
         {
