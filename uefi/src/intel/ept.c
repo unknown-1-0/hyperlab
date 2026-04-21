@@ -1,6 +1,7 @@
 #include <arch/x86/msr.h>
 #include <efi.h>
 #include <intel/ept.h>
+#include <intel/vm_backend.h>
 #include <intel/vmcs.h>
 #include <intel/vmx.h>
 #include <halt.h>
@@ -94,5 +95,131 @@ int intel_ept_initialize(void)
         ept_root = 0;
         return 0;
     }
+    return 1;
+}
+
+struct ept_table_indexes
+{
+    uint16_t pml4e;
+    uint16_t pdpte;
+    uint16_t pde;
+    uint16_t pte;
+};
+
+static void intel_ept_convert_guest_address_to_ept_indexes(size_t guest_address, struct ept_table_indexes* out_table)
+{
+    out_table->pml4e = (guest_address >> 39) & 0x1ff;
+    out_table->pdpte = (guest_address >> 30) & 0x1ff;
+    out_table->pde = (guest_address >> 21) & 0x1ff;
+    out_table->pte = (guest_address >> 12) & 0x1ff;
+}
+
+#define EPT_READABLE (1ULL<<0)
+#define EPT_WRITABLE (1ULL<<1)
+#define EPT_EXECUTABLE (1ULL<<2)
+
+// if not counting MAXPHYADDR (M), bits [51:12] seem to be allocated for the address of the next entry
+// (bits [51:M] are documented to be reserved and must be zero)
+#define EPT_ADDRESS_MASK (((1ULL<<52)-1ULL) ^ ((1ULL<<12)-1ULL))
+
+int intel_ept_map_page(size_t guest_address, unsigned int protection, void* host_address)
+{
+    if ((protection & PROT_READ) == 0)
+    {
+        return 0;
+    }
+
+    if (ept_root == 0)
+    {
+        return 0;
+    }
+
+    struct ept_table_indexes table_indexes;
+    intel_ept_convert_guest_address_to_ept_indexes(guest_address, &table_indexes);
+
+    uint64_t* pml4e_ptr = (uint64_t*)(ept_root + table_indexes.pml4e * 8);
+    uint64_t pml4e = *pml4e_ptr;
+
+    if ((pml4e & EPT_READABLE) == 0)
+    {
+        EFI_PHYSICAL_ADDRESS new_pdpt = 0;
+        if (!intel_ept_alloc_page(&new_pdpt))
+        {
+            print(L"EPT: Could not allocate a new page for a new PDPT\r\n");
+            return 0;
+        }
+
+        pml4e = new_pdpt | EPT_READABLE | EPT_WRITABLE | EPT_EXECUTABLE;
+
+        *pml4e_ptr = pml4e;
+    }
+
+    pml4e &= EPT_ADDRESS_MASK;
+
+    uint64_t* pdpte_ptr = (uint64_t*)(pml4e + table_indexes.pdpte * 8);
+    uint64_t pdpte = *pdpte_ptr;
+
+    if ((pdpte & EPT_READABLE) == 0)
+    {
+        EFI_PHYSICAL_ADDRESS new_pd = 0;
+        if (!intel_ept_alloc_page(&new_pd))
+        {
+            print(L"EPT: Could not allocate a new page for a new PD\r\n");
+            return 0;
+        }
+
+        pdpte = new_pd | EPT_READABLE | EPT_WRITABLE | EPT_EXECUTABLE;
+
+        *pdpte_ptr = pdpte;
+    }
+
+    pdpte &= EPT_ADDRESS_MASK;
+
+    uint64_t* pde_ptr = (uint64_t*)(pdpte + table_indexes.pde * 8);
+    uint64_t pde = *pde_ptr;
+
+    if ((pde & EPT_READABLE) == 0)
+    {
+        EFI_PHYSICAL_ADDRESS new_pt = 0;
+        if (!intel_ept_alloc_page(&new_pt))
+        {
+            print(L"EPT: Could not allocate a new page for a new PT\r\n");
+            return 0;
+        }
+
+        pde = new_pt | EPT_READABLE | EPT_WRITABLE | EPT_EXECUTABLE;
+
+        *pde_ptr = pde;
+    }
+
+    pde &= EPT_ADDRESS_MASK;
+
+    uint64_t* pte_ptr = (uint64_t*)(pde + table_indexes.pte * 8);
+
+    uint64_t pte = *pte_ptr;
+
+    if ((pte & EPT_READABLE) != 0)
+    {
+        // Do not allow modification of an already allocated page table entry
+        print(L"EPT: Attempted to remap an already present guest page\r\n");
+        printf(L"Indexes: PML4E: 0x%x PDPTE: 0x%x PDE: 0x%x PTE: 0x%x\r\n",
+            table_indexes.pml4e, table_indexes.pdpte, table_indexes.pde, table_indexes.pte);
+        return 0;
+    }
+
+    pte = (uint64_t)host_address & EPT_ADDRESS_MASK;
+    pte |= EPT_READABLE;
+
+    if (protection & PROT_WRITE)
+    {
+        pte |= EPT_WRITABLE;
+    }
+
+    if (protection & PROT_EXEC)
+    {
+        pte |= EPT_EXECUTABLE;
+    }
+
+    *pte_ptr = pte;
     return 1;
 }

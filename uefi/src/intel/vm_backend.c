@@ -1,4 +1,5 @@
 #include <efi.h>
+#include <intel/ept.h>
 #include <intel/vmcs.h>
 #include <intel/vmx.h>
 #include <print.h>
@@ -18,13 +19,13 @@ int intel_init_backend(EFI_SYSTEM_TABLE* SystemTable)
     print(L"Intel VMX is supported and turned on!\r\n");
 
     EFI_PHYSICAL_ADDRESS vmxon_area = 0;
-    
+
     if (BootServices->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData, 1, &vmxon_area) != EFI_SUCCESS)
     {
         print(L"Failed to allocate a page for VMXON area\r\n");
         return 0;
     }
-    
+
     if (!intel_enter_vmx_operation(vmxon_area))
     {
         BootServices->FreePages(vmxon_area, 1);
@@ -68,5 +69,6 @@ int intel_create_vm(void)
 
 struct vm_backend intel_vm_backend = {
     .init = intel_init_backend,
-    .create_vm = intel_create_vm
+    .create_vm = intel_create_vm,
+    .map_page = intel_ept_map_page
 };

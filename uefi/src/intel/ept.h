@@ -5,5 +5,6 @@
 
 int intel_ept_alloc_page(EFI_PHYSICAL_ADDRESS* out_addr);
 int intel_ept_initialize(void);
+int intel_ept_map_page(size_t guest_address, unsigned int protection, void* host_address);
 
 #endif
