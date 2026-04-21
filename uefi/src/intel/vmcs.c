@@ -3,6 +3,7 @@
 #include <arch/x86/msr.h>
 #include <efi.h>
 #include <gdt.h>
+#include <intel/ept.h>
 #include <intel/vmcs.h>
 #include <intel/vmx.h>
 #include <print.h>
@@ -297,62 +298,9 @@ int intel_vmcs_setup_guest_state(void)
     return 1;
 }
 
-#define MSR_IA32_VMX_EPT_VPID_CAP 0x48c
-#define VMX_EPT_VPID_CAP_EPT_PAGE_WALK_LENGTH_4_SUPPORTED (1ULL<<6)
-#define VMX_EPT_VPID_CAP_EPT_MEMORY_TYPE_UC_SUPPORTED (1ULL<<8)
-#define VMX_EPT_VPID_CAP_EPT_MEMORY_TYPE_WB_SUPPORTED (1ULL<<14)
-#define VMX_EPT_VPID_CAP_EPT_ACCESSED_DIRTY_FLAGS_SUPPORTED (1ULL<<21)
-
 int intel_vmcs_setup_ept(void)
 {
-    uint64_t vmx_ept_vpid_cap = rdmsr(MSR_IA32_VMX_EPT_VPID_CAP);
-
-    if ((vmx_ept_vpid_cap & VMX_EPT_VPID_CAP_EPT_PAGE_WALK_LENGTH_4_SUPPORTED) == 0)
-    {
-        print(L"EPT: Page walk length of 4 is not supported!\r\n");
-        return 0;
-    }
-
-    uint64_t ept_ptr = EPT_PTR_PAGE_WALK_LENGTH(4);
-
-    if ((vmx_ept_vpid_cap & VMX_EPT_VPID_CAP_EPT_MEMORY_TYPE_WB_SUPPORTED) != 0)
-    {
-        ept_ptr |= EPT_PTR_MEMORY_TYPE_WB;
-        print(L"EPT: Using WB as EPT memory type\r\n");
-    }
-    else if ((vmx_ept_vpid_cap & VMX_EPT_VPID_CAP_EPT_MEMORY_TYPE_UC_SUPPORTED) != 0)
-    {
-        ept_ptr |= EPT_PTR_MEMORY_TYPE_UC;
-        print(L"EPT: Using UC as EPT memory type\r\n");
-    }
-    else
-    {
-        print(L"EPT: Cannot determine the supported EPT memory type\r\n");
-        return 0;
-    }
-
-    if ((vmx_ept_vpid_cap & VMX_EPT_VPID_CAP_EPT_ACCESSED_DIRTY_FLAGS_SUPPORTED) != 0)
-    {
-        ept_ptr |= EPT_PTR_ENABLE_ACCESSED_DIRTY_FLAGS;
-        print(L"EPT: Accessed and dirty flags enabled\r\n");
-    }
-
-    EFI_PHYSICAL_ADDRESS ept_root = 0;
-
-    EFI_STATUS status = BootServices->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData, 1, &ept_root);
-
-    if (status != EFI_SUCCESS)
-    {
-        printf(L"EPT: Failed to allocate memory for root EPT table, status = 0x%x\r\n", status);
-        return 0;
-    }
-
-    BootServices->SetMem((void*)ept_root, 0x1000, 0);
-
-    ept_ptr |= ept_root;
-
-    VMWRITE(VMCS_EPT_PTR, ept_ptr);
-    return 1;
+    return intel_ept_initialize();
 }
 
 int intel_init_vmcs(EFI_PHYSICAL_ADDRESS vmcs)
