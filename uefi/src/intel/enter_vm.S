@@ -2,6 +2,7 @@
 .global intel_do_enter_vm
 
 #include <intel/vmcs.h>
+#include <vm_context.h>
 
 // Perform VM-entry with provided general-purpose registers
 // The new guest registers are not saved if this function returns 0
@@ -35,28 +36,28 @@ jz .fail
 jc .fail
 
 mov eax, VMCS_GUEST_RSP
-mov rbx, [rcx+0x20]
+mov rbx, [rcx+REG_RSP*8]
 vmwrite rax, rbx
 jz .fail
 jc .fail
 
-mov rax, [rcx]
-mov rdx, [rcx+0x10]
-mov rbx, [rcx+0x18]
+mov rax, [rcx+REG_RAX*8]
+mov rdx, [rcx+REG_RDX*8]
+mov rbx, [rcx+REG_RBX*8]
 // guest RSP is already loaded
-mov rbp, [rcx+0x28]
-mov rsi, [rcx+0x30]
-mov rdi, [rcx+0x38]
-mov r8, [rcx+0x40]
-mov r9, [rcx+0x48]
-mov r10, [rcx+0x50]
-mov r11, [rcx+0x58]
-mov r12, [rcx+0x60]
-mov r13, [rcx+0x68]
-mov r14, [rcx+0x70]
-mov r15, [rcx+0x78]
+mov rbp, [rcx+REG_RBP*8]
+mov rsi, [rcx+REG_RSI*8]
+mov rdi, [rcx+REG_RDI*8]
+mov r8, [rcx+8*8]
+mov r9, [rcx+9*8]
+mov r10, [rcx+10*8]
+mov r11, [rcx+11*8]
+mov r12, [rcx+12*8]
+mov r13, [rcx+13*8]
+mov r14, [rcx+14*8]
+mov r15, [rcx+15*8]
 
-mov rcx, [rcx+8]
+mov rcx, [rcx+REG_RCX*8]
 
 vmresume
 
@@ -78,28 +79,28 @@ jmp .restore_nonvolatile_regs
 
 .handle_vmexit:
 xchg rdx, [rsp]
-mov [rdx], rax
-mov [rdx+0x8], rcx
+mov [rdx+REG_RAX*8], rax
+mov [rdx+REG_RCX*8], rcx
 
 pop rax
-mov [rdx+0x10], rax
+mov [rdx+REG_RDX*8], rax
 
-mov [rdx+0x18], rbx
+mov [rdx+REG_RBX*8], rbx
 
 mov eax, VMCS_GUEST_RSP
 vmread rax, rax
-mov [rdx+0x20], rax
-mov [rdx+0x28], rbp
-mov [rdx+0x30], rsi
-mov [rdx+0x38], rdi
-mov [rdx+0x40], r8
-mov [rdx+0x48], r9
-mov [rdx+0x50], r10
-mov [rdx+0x58], r11
-mov [rdx+0x60], r12
-mov [rdx+0x68], r13
-mov [rdx+0x70], r14
-mov [rdx+0x78], r15
+mov [rdx+REG_RSP*8], rax
+mov [rdx+REG_RBP*8], rbp
+mov [rdx+REG_RSI*8], rsi
+mov [rdx+REG_RDI*8], rdi
+mov [rdx+8*8], r8
+mov [rdx+9*8], r9
+mov [rdx+10*8], r10
+mov [rdx+11*8], r11
+mov [rdx+12*8], r12
+mov [rdx+13*8], r13
+mov [rdx+14*8], r14
+mov [rdx+15*8], r15
 
 mov eax, 1
 .restore_nonvolatile_regs:
