@@ -49,6 +49,7 @@ uint32_t intel_vmx_get_vmcs_revision_id(void)
     return rdmsr(MSR_IA32_VMX_BASIC) & ((1UL<<31)-1);
 }
 
+#define CR4_MCE (1ULL<<6)
 static uint64_t old_cr0 = 0;
 static uint64_t old_cr4 = 0;
 static EFI_PHYSICAL_ADDRESS vmxon_area_addr = 0;
@@ -61,8 +62,18 @@ int intel_enter_vmx_operation(EFI_PHYSICAL_ADDRESS vmxon_area)
     old_cr4 = read_cr4();
 
     write_cr0((old_cr0 | rdmsr(MSR_IA32_VMX_CR0_FIXED0)) & rdmsr(MSR_IA32_VMX_CR0_FIXED1));
+
+    uint64_t vmx_cr4_fixed1 = rdmsr(MSR_IA32_VMX_CR4_FIXED1);
+    uint64_t new_cr4 = (old_cr4 | rdmsr(MSR_IA32_VMX_CR4_FIXED0) | CR4_MCE) & vmx_cr4_fixed1;
+
+    if ((new_cr4 & CR4_MCE) == 0)
+    {
+        print(L"VMX: Machine-check exception handling is not supported in VMX operation!?\r\n");
+        write_cr0(old_cr0);
+        return 0;
+    }
     // No need to worry about CR4.VMXE: it must be 1 in VMX operation, so it will be set here
-    write_cr4((old_cr4 | rdmsr(MSR_IA32_VMX_CR4_FIXED0)) & rdmsr(MSR_IA32_VMX_CR4_FIXED1));
+    write_cr4(new_cr4);
 
     *(uint32_t*)vmxon_area = intel_vmx_get_vmcs_revision_id();
 
