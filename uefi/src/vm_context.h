@@ -16,10 +16,10 @@
 
 struct segment_register
 {
-    uint16_t selector;
-    uint16_t access_rights;
-    uint32_t limit;
     size_t base;
+    uint32_t limit;
+    uint32_t attributes;
+    uint16_t selector;
 };
 
 struct gdtr_idtr
