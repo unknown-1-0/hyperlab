@@ -115,4 +115,5 @@ struct vm_backend intel_vm_backend = {
     .enter_vm = intel_enter_vm,
     .create_vm = intel_create_vm,
     .map_page = intel_ept_map_page,
+    .compute_segment_attributes = intel_vmcs_compute_segment_attributes
 };

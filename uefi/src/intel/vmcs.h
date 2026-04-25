@@ -70,6 +70,7 @@ static inline uint8_t __attribute__((always_inline)) vmwrite(uint64_t field, uin
 int intel_init_vmcs(EFI_PHYSICAL_ADDRESS vmcs);
 int intel_vmcs_load_guest_context(struct vm_context* context);
 int intel_vmcs_save_guest_context(struct vm_context* out_context);
+uint32_t intel_vmcs_compute_segment_attributes(uint8_t dpl, uint8_t type, uint8_t flags);
 #endif
 
 #define VMCS_GUEST_ES_SELECTOR 0x800
@@ -210,9 +211,6 @@ int intel_vmcs_save_guest_context(struct vm_context* out_context);
 #define ACCESS_RIGHTS_32BIT_SEGMENT (1ULL<<14)
 #define ACCESS_RIGHTS_GRANULARITY (1ULL<<15)
 #define ACCESS_RIGHTS_UNUSABLE (1ULL<<16)
-#define ACCESS_RIGHTS_WRITABLE_DATA_SEGMENT (ACCESS_RIGHTS_CODE_OR_DATA_SEGMENT | 3)
-#define ACCESS_RIGHTS_64BIT_READABLE_CODE_SEGMENT (ACCESS_RIGHTS_64BIT_MODE_ACTIVE | ACCESS_RIGHTS_CODE_OR_DATA_SEGMENT | 11)
-#define ACCESS_RIGHTS_64BIT_BUSY_TASK_STATE_SEGMENT (11)
 
 #define VMCS_HOST_IA32_SYSENTER_CS 0x4c00
 

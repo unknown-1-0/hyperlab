@@ -7,6 +7,7 @@
 #include <intel/vmcs.h>
 #include <intel/vmx.h>
 #include <print.h>
+#include <vm_backend.h>
 #include <vm_context.h>
 
 #define MSR_IA32_VMX_PINBASED_CTLS 0x481
@@ -419,14 +420,14 @@ int intel_vmcs_load_guest_context(struct vm_context* context)
     VMWRITE(VMCS_GUEST_GDTR_LIMIT, context->gdtr.limit);
     VMWRITE(VMCS_GUEST_IDTR_LIMIT, context->idtr.limit);
 
-    VMWRITE(VMCS_GUEST_ES_ACCESS_RIGHTS, context->es.access_rights);
-    VMWRITE(VMCS_GUEST_CS_ACCESS_RIGHTS, context->cs.access_rights);
-    VMWRITE(VMCS_GUEST_SS_ACCESS_RIGHTS, context->ss.access_rights);
-    VMWRITE(VMCS_GUEST_DS_ACCESS_RIGHTS, context->ds.access_rights);
-    VMWRITE(VMCS_GUEST_FS_ACCESS_RIGHTS, context->fs.access_rights);
-    VMWRITE(VMCS_GUEST_GS_ACCESS_RIGHTS, context->gs.access_rights);
-    VMWRITE(VMCS_GUEST_LDTR_ACCESS_RIGHTS, context->ldtr.access_rights);
-    VMWRITE(VMCS_GUEST_TR_ACCESS_RIGHTS, context->tr.access_rights);
+    VMWRITE(VMCS_GUEST_ES_ACCESS_RIGHTS, context->es.attributes);
+    VMWRITE(VMCS_GUEST_CS_ACCESS_RIGHTS, context->cs.attributes);
+    VMWRITE(VMCS_GUEST_SS_ACCESS_RIGHTS, context->ss.attributes);
+    VMWRITE(VMCS_GUEST_DS_ACCESS_RIGHTS, context->ds.attributes);
+    VMWRITE(VMCS_GUEST_FS_ACCESS_RIGHTS, context->fs.attributes);
+    VMWRITE(VMCS_GUEST_GS_ACCESS_RIGHTS, context->gs.attributes);
+    VMWRITE(VMCS_GUEST_LDTR_ACCESS_RIGHTS, context->ldtr.attributes);
+    VMWRITE(VMCS_GUEST_TR_ACCESS_RIGHTS, context->tr.attributes);
 
     uint64_t dr6_mask = (0xfULL | (3ULL << 11) | (1ULL << 14) | (1ULL << 16));
     uint64_t dr6_xor_mask = (1ULL<<11) | (1ULL<<16);
@@ -440,6 +441,7 @@ int intel_vmcs_load_guest_context(struct vm_context* context)
     VMWRITE(VMCS_GUEST_IA32_SYSENTER_EIP, context->sysenter_eip);
     VMWRITE(VMCS_GUEST_IA32_DEBUGCTL, context->debugctl);
     VMWRITE(VMCS_GUEST_IA32_EFER, context->efer);
+
     VMWRITE(VMCS_GUEST_IA32_PAT, context->pat);
     VMWRITE(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, context->perf_global_ctrl);
 
@@ -499,14 +501,14 @@ int intel_vmcs_save_guest_context(struct vm_context* context)
     VMREAD(VMCS_GUEST_GDTR_LIMIT, context->gdtr.limit);
     VMREAD(VMCS_GUEST_IDTR_LIMIT, context->idtr.limit);
 
-    VMREAD(VMCS_GUEST_ES_ACCESS_RIGHTS, context->es.access_rights);
-    VMREAD(VMCS_GUEST_CS_ACCESS_RIGHTS, context->cs.access_rights);
-    VMREAD(VMCS_GUEST_SS_ACCESS_RIGHTS, context->ss.access_rights);
-    VMREAD(VMCS_GUEST_DS_ACCESS_RIGHTS, context->ds.access_rights);
-    VMREAD(VMCS_GUEST_FS_ACCESS_RIGHTS, context->fs.access_rights);
-    VMREAD(VMCS_GUEST_GS_ACCESS_RIGHTS, context->gs.access_rights);
-    VMREAD(VMCS_GUEST_LDTR_ACCESS_RIGHTS, context->ldtr.access_rights);
-    VMREAD(VMCS_GUEST_TR_ACCESS_RIGHTS, context->tr.access_rights);
+    VMREAD(VMCS_GUEST_ES_ACCESS_RIGHTS, context->es.attributes);
+    VMREAD(VMCS_GUEST_CS_ACCESS_RIGHTS, context->cs.attributes);
+    VMREAD(VMCS_GUEST_SS_ACCESS_RIGHTS, context->ss.attributes);
+    VMREAD(VMCS_GUEST_DS_ACCESS_RIGHTS, context->ds.attributes);
+    VMREAD(VMCS_GUEST_FS_ACCESS_RIGHTS, context->fs.attributes);
+    VMREAD(VMCS_GUEST_GS_ACCESS_RIGHTS, context->gs.attributes);
+    VMREAD(VMCS_GUEST_LDTR_ACCESS_RIGHTS, context->ldtr.attributes);
+    VMREAD(VMCS_GUEST_TR_ACCESS_RIGHTS, context->tr.attributes);
 
     uint64_t dr6_xor_mask = (1ULL<<11) | (1ULL<<16);
 
@@ -538,4 +540,44 @@ int intel_vmcs_save_guest_context(struct vm_context* context)
     VMREAD(VMCS_GUEST_PDPTE2, context->pdpte[2]);
     VMREAD(VMCS_GUEST_PDPTE3, context->pdpte[3]);
     return 1;
+}
+
+uint32_t intel_vmcs_compute_segment_attributes(uint8_t dpl, uint8_t type, uint8_t flags)
+{
+    dpl &= 3;
+    type &= (1U<<4)-1;
+
+    uint32_t attributes = (dpl << 5) | type;
+
+    if (flags & ATTR_CODE_OR_DATA_SEGMENT)
+    {
+        attributes |= ACCESS_RIGHTS_CODE_OR_DATA_SEGMENT;
+    }
+
+    if (flags & ATTR_PRESENT)
+    {
+        attributes |= ACCESS_RIGHTS_PRESENT;
+    }
+
+    if (flags & ATTR_64BIT_MODE_ACTIVE)
+    {
+        attributes |= ACCESS_RIGHTS_64BIT_MODE_ACTIVE;
+    }
+
+    if (flags & ATTR_32BIT_SEGMENT)
+    {
+        attributes |= ACCESS_RIGHTS_32BIT_SEGMENT;
+    }
+
+    if (flags & ATTR_GRANULARITY)
+    {
+        attributes |= ACCESS_RIGHTS_GRANULARITY;
+    }
+
+    if (flags & ATTR_UNUSABLE)
+    {
+        attributes |= ACCESS_RIGHTS_UNUSABLE;
+    }
+
+    return attributes;
 }
