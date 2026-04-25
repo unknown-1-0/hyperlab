@@ -35,15 +35,23 @@ int intel_vmcs_setup_control_fields(void)
         VMWRITE(VMCS_PINBASED_VM_EXEC_CTLS, vmx_pinbased_ctls & (vmx_pinbased_ctls >> 32));
     }
 
+    int tertiary_ctls_available = 0;
     {
         uint64_t primary_procbased_ctls = rdmsr(MSR_IA32_VMX_PROCBASED_CTLS);
         uint32_t result_value = (uint32_t)primary_procbased_ctls |
-            PRIMARY_PROCBASED_VM_EXEC_CTLS_UNCONDITIONAL_IO_EXITING | PRIMARY_PROCBASED_VM_EXEC_CTLS_ACTIVATE_SECONDARY_CTLS;
+            PRIMARY_PROCBASED_VM_EXEC_CTLS_UNCONDITIONAL_IO_EXITING |
+            PRIMARY_PROCBASED_VM_EXEC_CTLS_ACTIVATE_SECONDARY_CTLS;
 
         if ((result_value & (primary_procbased_ctls >> 32)) != result_value)
         {
             print(L"VMCS: Could not set desired value of primary processor-based VM-execution controls\r\n");
             return 0;
+        }
+
+        if (((primary_procbased_ctls >> 32) & PRIMARY_PROCBASED_VM_EXEC_CTLS_ACTIVATE_TERTIARY_CTLS) != 0)
+        {
+            result_value |= PRIMARY_PROCBASED_VM_EXEC_CTLS_ACTIVATE_TERTIARY_CTLS;
+            tertiary_ctls_available = 1;
         }
 
         VMWRITE(VMCS_PRIMARY_PROCBASED_VM_EXEC_CTLS, result_value);
@@ -56,11 +64,29 @@ int intel_vmcs_setup_control_fields(void)
 
         if ((result_value & (secondary_procbased_ctls >> 32)) != result_value)
         {
-            print(L"VMCS: Could not set desired value of secondary processor-based VM-execution controls (EPT not supported?)\r\n");
+            print(L"VMCS: Could not enable neccessary features in secondary processor-based VM-execution controls (EPT or unrestricted guest not supported?)\r\n");
             return 0;
         }
 
+        result_value |= SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_RDTSCP | SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_INVPCID |
+            SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_XSAVES_XRSTORS | SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_USER_WAIT_AND_PAUSE |
+            SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_PCONFIG;
+
+        result_value &= (secondary_procbased_ctls >> 32);
+
         VMWRITE(VMCS_SECONDARY_PROCBASED_VM_EXEC_CTLS, result_value);
+    }
+
+    if (tertiary_ctls_available)
+    {
+        uint64_t tertiary_procbased_ctls = rdmsr(MSR_IA32_VMX_PROCBASED_CTLS3);
+
+        uint64_t result_value = TERTIARY_PROCBASED_VM_EXEC_CTLS_ENABLE_MSR_LIST_INSTRUCTIONS |
+            TERTIARY_PROCBASED_VM_EXEC_CTLS_ENABLE_PBNDKB;
+
+        result_value &= tertiary_procbased_ctls;
+
+        VMWRITE(VMCS_TERTIARY_PROCBASED_VM_EXEC_CTLS, result_value);
     }
 
     {
