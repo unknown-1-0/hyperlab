@@ -1,8 +1,8 @@
 #ifndef _VM_BACKENDS_H_
 #define _VM_BACKENDS_H_
 
-#include "vm_backend.h"
 #include <efi.h>
+#include <vm_backend.h>
 
 struct vm_backend_entry
 {

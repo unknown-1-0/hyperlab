@@ -1,5 +1,5 @@
-#include "intel/vm_backend.h"
-#include "vm_backends.h"
+#include <intel/vm_backend.h>
+#include <vm_backends.h>
 
 struct vm_backend_entry vendor_specific_vm_backends[1] = {
     {
