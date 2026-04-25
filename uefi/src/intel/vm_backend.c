@@ -1,3 +1,5 @@
+#include <arch/x86/control_registers.h>
+#include <arch/x86/debug_registers.h>
 #include <efi.h>
 #include <intel/ept.h>
 #include <intel/vmcs.h>
@@ -67,8 +69,6 @@ int intel_create_vm(void)
     return 1;
 }
 
-//static uint64_t guest_general_purpose_registers[16] = {0};
-
 int intel_do_enter_vm(uint64_t in_guest_general_purpose_regs[16], uint64_t out_guest_general_purpose_regs[16]);
 
 int intel_enter_vm(struct vm_context* context, struct vm_context* out_context)
@@ -78,8 +78,34 @@ int intel_enter_vm(struct vm_context* context, struct vm_context* out_context)
         return 0;
     }
 
+    uint64_t host_cr2 = read_cr2();
+    write_cr2(context->cr2);
+
+    uint64_t host_dr[4];
+    host_dr[0] = read_dr0();
+    host_dr[1] = read_dr1();
+    host_dr[2] = read_dr2();
+    host_dr[3] = read_dr3();
+
+    write_dr0(context->dr0);
+    write_dr1(context->dr1);
+    write_dr2(context->dr2);
+    write_dr3(context->dr3);
+
     int ret = intel_do_enter_vm(context->registers, out_context->registers);
-    
+
+    out_context->cr2 = read_cr2();
+    write_cr2(host_cr2);
+
+    out_context->dr0 = read_dr0();
+    out_context->dr1 = read_dr1();
+    out_context->dr2 = read_dr2();
+    out_context->dr3 = read_dr3();
+    write_dr0(host_dr[0]);
+    write_dr1(host_dr[1]);
+    write_dr2(host_dr[2]);
+    write_dr3(host_dr[3]);
+
     intel_vmcs_save_guest_context(out_context);
     return ret;
 }
