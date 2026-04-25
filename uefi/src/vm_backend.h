@@ -3,7 +3,7 @@
 
 #include <efi.h>
 #include <stdint.h>
-#include "vm_context.h"
+#include <vm_context.h>
 
 #define PROT_READ 1U
 #define PROT_WRITE 2U
@@ -18,8 +18,8 @@ struct vm_backend
     int (*map_page)(size_t guest_phys_addr, unsigned int protection, void* host_page_addr);
     int (*unmap_page)(size_t guest_phys_addr);
     int (*get_vm_context)(struct vm_context* out_context);
-    int (*set_vm_context)(struct vm_context* new_context);
-    int (*enter_vm)(void);
+    uint64_t (*compute_segment_access_rights)(uint8_t dpl, uint8_t type, uint8_t flags);
+    int (*enter_vm)(struct vm_context* context, struct vm_context* out_context);
     int (*deinit)(void);
 };
 

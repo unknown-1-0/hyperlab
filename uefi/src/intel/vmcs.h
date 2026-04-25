@@ -1,8 +1,11 @@
 #ifndef _INTEL_VMCS_H_
 #define _INTEL_VMCS_H_
 
+#ifndef __ASSEMBLER__
 #include <efi.h>
 #include <stdint.h>
+#include <vm_context.h>
+
 static inline uint8_t __attribute__((always_inline)) vmclear(EFI_PHYSICAL_ADDRESS vmcs)
 {
     uint8_t carry;
@@ -65,6 +68,9 @@ static inline uint8_t __attribute__((always_inline)) vmwrite(uint64_t field, uin
 }
 
 int intel_init_vmcs(EFI_PHYSICAL_ADDRESS vmcs);
+int intel_vmcs_load_guest_context(struct vm_context* context);
+int intel_vmcs_save_guest_context(struct vm_context* out_context);
+#endif
 
 #define VMCS_GUEST_ES_SELECTOR 0x800
 #define VMCS_GUEST_CS_SELECTOR 0x802
@@ -155,6 +161,7 @@ int intel_init_vmcs(EFI_PHYSICAL_ADDRESS vmcs);
 #define SECONDARY_PROCBASED_VM_EXEC_CTLS_ENABLE_PCONFIG (1ULL<<27)
 
 #define VMCS_VM_INSTRUCTION_ERROR 0x4400
+#define VM_INSTRUCTION_ERROR_VMRESUME_WITH_NON_LAUNCHED_VMCS 5
 
 #define VMCS_EXIT_REASON 0x4402
 #define VMCS_EXITING_EVENT_ID 0x4404

@@ -67,8 +67,26 @@ int intel_create_vm(void)
     return 1;
 }
 
+//static uint64_t guest_general_purpose_registers[16] = {0};
+
+int intel_do_enter_vm(uint64_t in_guest_general_purpose_regs[16], uint64_t out_guest_general_purpose_regs[16]);
+
+int intel_enter_vm(struct vm_context* context, struct vm_context* out_context)
+{
+    if (!intel_vmcs_load_guest_context(context))
+    {
+        return 0;
+    }
+
+    int ret = intel_do_enter_vm(context->registers, out_context->registers);
+    
+    intel_vmcs_save_guest_context(out_context);
+    return ret;
+}
+
 struct vm_backend intel_vm_backend = {
     .init = intel_init_backend,
+    .enter_vm = intel_enter_vm,
     .create_vm = intel_create_vm,
-    .map_page = intel_ept_map_page
+    .map_page = intel_ept_map_page,
 };

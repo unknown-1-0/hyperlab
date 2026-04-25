@@ -7,6 +7,7 @@
 #include <intel/vmcs.h>
 #include <intel/vmx.h>
 #include <print.h>
+#include <vm_context.h>
 
 #define MSR_IA32_VMX_PINBASED_CTLS 0x481
 #define MSR_IA32_VMX_PROCBASED_CTLS 0x482
@@ -14,6 +15,17 @@
 #define MSR_IA32_VMX_ENTRY_CTLS 0x484
 #define MSR_IA32_VMX_PROCBASED_CTLS2 0x48b
 #define MSR_IA32_VMX_PROCBASED_CTLS3 0x492
+
+#define VMREAD(field, value) do \
+{ \
+    uint64_t vmcs_field = (field); \
+    void* vmcs_field_value_ptr = &(value); \
+    if (!vmread(vmcs_field, vmcs_field_value_ptr)) \
+    { \
+        printf(L"VMCS: VMREAD of field 0x%x failed\r\n", vmcs_field); \
+        return 0; \
+    } \
+} while(0)
 
 #define VMWRITE(field, value) do \
 { \
@@ -160,10 +172,6 @@ int intel_vmcs_setup_control_fields(void)
 #define MSR_IA32_PAT 0x277
 #define MSR_IA32_EFER 0xc0000080
 
-#define EFER_LME (1ULL<<8)
-#define EFER_LMA (1ULL<<10)
-#define EFER_NXE (1ULL<<11)
-
 int intel_vmcs_setup_host_state(void)
 {
     VMWRITE(VMCS_HOST_CR0, read_cr0());
@@ -232,7 +240,8 @@ int intel_vmcs_setup_guest_state(void)
 {
     VMWRITE(VMCS_LINK_PTR, ~0ULL);
 
-    VMWRITE(VMCS_GUEST_CR0, read_cr0());
+// Will be set up during intel_vmcs_load_guest_context
+/*    VMWRITE(VMCS_GUEST_CR0, read_cr0());
     VMWRITE(VMCS_GUEST_CR3, 0);
     VMWRITE(VMCS_GUEST_CR4, read_cr4());
     VMWRITE(VMCS_GUEST_DR7, (1ULL<<10));
@@ -320,7 +329,7 @@ int intel_vmcs_setup_guest_state(void)
     VMWRITE(VMCS_GUEST_PDPTE0, 0);
     VMWRITE(VMCS_GUEST_PDPTE1, 0);
     VMWRITE(VMCS_GUEST_PDPTE2, 0);
-    VMWRITE(VMCS_GUEST_PDPTE3, 0);
+    VMWRITE(VMCS_GUEST_PDPTE3, 0);*/
     return 1;
 }
 
@@ -372,3 +381,161 @@ int intel_init_vmcs(EFI_PHYSICAL_ADDRESS vmcs)
     return 1;
 }
 
+int intel_vmcs_load_guest_context(struct vm_context* context)
+{
+    VMWRITE(VMCS_GUEST_CR0, context->cr0);
+    VMWRITE(VMCS_GUEST_CR3, context->cr3);
+    VMWRITE(VMCS_GUEST_CR4, context->cr4);
+    VMWRITE(VMCS_GUEST_DR7, context->dr7);
+
+    VMWRITE(VMCS_GUEST_ES_SELECTOR, context->es.selector);
+    VMWRITE(VMCS_GUEST_CS_SELECTOR, context->cs.selector);
+    VMWRITE(VMCS_GUEST_SS_SELECTOR, context->ss.selector);
+    VMWRITE(VMCS_GUEST_DS_SELECTOR, context->ds.selector);
+    VMWRITE(VMCS_GUEST_FS_SELECTOR, context->fs.selector);
+    VMWRITE(VMCS_GUEST_GS_SELECTOR, context->gs.selector);
+    VMWRITE(VMCS_GUEST_LDTR_SELECTOR, context->ldtr.selector);
+    VMWRITE(VMCS_GUEST_TR_SELECTOR, context->tr.selector);
+
+    VMWRITE(VMCS_GUEST_ES_BASE, context->es.base);
+    VMWRITE(VMCS_GUEST_CS_BASE, context->cs.base);
+    VMWRITE(VMCS_GUEST_SS_BASE, context->ss.base);
+    VMWRITE(VMCS_GUEST_DS_BASE, context->ds.base);
+    VMWRITE(VMCS_GUEST_FS_BASE, context->fs.base);
+    VMWRITE(VMCS_GUEST_GS_BASE, context->gs.base);
+    VMWRITE(VMCS_GUEST_LDTR_BASE, context->ldtr.base);
+    VMWRITE(VMCS_GUEST_TR_BASE, context->tr.base);
+    VMWRITE(VMCS_GUEST_GDTR_BASE, context->gdtr.base);
+    VMWRITE(VMCS_GUEST_IDTR_BASE, context->idtr.base);
+
+    VMWRITE(VMCS_GUEST_ES_LIMIT, context->es.limit);
+    VMWRITE(VMCS_GUEST_CS_LIMIT, context->cs.limit);
+    VMWRITE(VMCS_GUEST_SS_LIMIT, context->ss.limit);
+    VMWRITE(VMCS_GUEST_DS_LIMIT, context->ds.limit);
+    VMWRITE(VMCS_GUEST_FS_LIMIT, context->fs.limit);
+    VMWRITE(VMCS_GUEST_GS_LIMIT, context->gs.limit);
+    VMWRITE(VMCS_GUEST_LDTR_LIMIT, context->ldtr.limit);
+    VMWRITE(VMCS_GUEST_TR_LIMIT, context->tr.limit);
+    VMWRITE(VMCS_GUEST_GDTR_LIMIT, context->gdtr.limit);
+    VMWRITE(VMCS_GUEST_IDTR_LIMIT, context->idtr.limit);
+
+    VMWRITE(VMCS_GUEST_ES_ACCESS_RIGHTS, context->es.access_rights);
+    VMWRITE(VMCS_GUEST_CS_ACCESS_RIGHTS, context->cs.access_rights);
+    VMWRITE(VMCS_GUEST_SS_ACCESS_RIGHTS, context->ss.access_rights);
+    VMWRITE(VMCS_GUEST_DS_ACCESS_RIGHTS, context->ds.access_rights);
+    VMWRITE(VMCS_GUEST_FS_ACCESS_RIGHTS, context->fs.access_rights);
+    VMWRITE(VMCS_GUEST_GS_ACCESS_RIGHTS, context->gs.access_rights);
+    VMWRITE(VMCS_GUEST_LDTR_ACCESS_RIGHTS, context->ldtr.access_rights);
+    VMWRITE(VMCS_GUEST_TR_ACCESS_RIGHTS, context->tr.access_rights);
+
+    uint64_t dr6_mask = (0xfULL | (3ULL << 11) | (1ULL << 14) | (1ULL << 16));
+    uint64_t dr6_xor_mask = (1ULL<<11) | (1ULL<<16);
+
+    VMWRITE(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, (context->dr6 ^ dr6_xor_mask) & dr6_mask);
+    VMWRITE(VMCS_GUEST_ACTIVITY_STATE, context->activity_state);
+    VMWRITE(VMCS_GUEST_INTERRUPTIBILITY_STATE, context->interruptibility_state);
+
+    VMWRITE(VMCS_GUEST_IA32_SYSENTER_CS, context->sysenter_cs);
+    VMWRITE(VMCS_GUEST_IA32_SYSENTER_ESP, context->sysenter_esp);
+    VMWRITE(VMCS_GUEST_IA32_SYSENTER_EIP, context->sysenter_eip);
+    VMWRITE(VMCS_GUEST_IA32_DEBUGCTL, context->debugctl);
+    VMWRITE(VMCS_GUEST_IA32_EFER, context->efer);
+    VMWRITE(VMCS_GUEST_IA32_PAT, context->pat);
+    VMWRITE(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, context->perf_global_ctrl);
+
+    // Guest RSP will be loaded in intel_do_enter_vm()
+    VMWRITE(VMCS_GUEST_RIP, context->rip);
+    VMWRITE(VMCS_GUEST_RFLAGS, context->rflags);
+
+    // Fails in KVM
+    vmwrite(VMCS_GUEST_SMBASE, context->smbase);
+    // Not all CPUs support Intel MPX, may fail
+    vmwrite(VMCS_GUEST_IA32_BNDCFGS, context->bndcfgs);
+
+    VMWRITE(VMCS_VMX_PREEMPTION_TIMER_VALUE, 0);
+
+    VMWRITE(VMCS_GUEST_PDPTE0, context->pdpte[0]);
+    VMWRITE(VMCS_GUEST_PDPTE1, context->pdpte[1]);
+    VMWRITE(VMCS_GUEST_PDPTE2, context->pdpte[2]);
+    VMWRITE(VMCS_GUEST_PDPTE3, context->pdpte[3]);
+    return 1;
+}
+
+int intel_vmcs_save_guest_context(struct vm_context* context)
+{
+    VMREAD(VMCS_GUEST_CR0, context->cr0);
+    VMREAD(VMCS_GUEST_CR3, context->cr3);
+    VMREAD(VMCS_GUEST_CR4, context->cr4);
+    VMREAD(VMCS_GUEST_DR7, context->dr7);
+
+    VMREAD(VMCS_GUEST_ES_SELECTOR, context->es.selector);
+    VMREAD(VMCS_GUEST_CS_SELECTOR, context->cs.selector);
+    VMREAD(VMCS_GUEST_SS_SELECTOR, context->ss.selector);
+    VMREAD(VMCS_GUEST_DS_SELECTOR, context->ds.selector);
+    VMREAD(VMCS_GUEST_FS_SELECTOR, context->fs.selector);
+    VMREAD(VMCS_GUEST_GS_SELECTOR, context->gs.selector);
+    VMREAD(VMCS_GUEST_LDTR_SELECTOR, context->ldtr.selector);
+    VMREAD(VMCS_GUEST_TR_SELECTOR, context->tr.selector);
+
+    VMREAD(VMCS_GUEST_ES_BASE, context->es.base);
+    VMREAD(VMCS_GUEST_CS_BASE, context->cs.base);
+    VMREAD(VMCS_GUEST_SS_BASE, context->ss.base);
+    VMREAD(VMCS_GUEST_DS_BASE, context->ds.base);
+    VMREAD(VMCS_GUEST_FS_BASE, context->fs.base);
+    VMREAD(VMCS_GUEST_GS_BASE, context->gs.base);
+    VMREAD(VMCS_GUEST_LDTR_BASE, context->ldtr.base);
+    VMREAD(VMCS_GUEST_TR_BASE, context->tr.base);
+    VMREAD(VMCS_GUEST_GDTR_BASE, context->gdtr.base);
+    VMREAD(VMCS_GUEST_IDTR_BASE, context->idtr.base);
+
+    VMREAD(VMCS_GUEST_ES_LIMIT, context->es.limit);
+    VMREAD(VMCS_GUEST_CS_LIMIT, context->cs.limit);
+    VMREAD(VMCS_GUEST_SS_LIMIT, context->ss.limit);
+    VMREAD(VMCS_GUEST_DS_LIMIT, context->ds.limit);
+    VMREAD(VMCS_GUEST_FS_LIMIT, context->fs.limit);
+    VMREAD(VMCS_GUEST_GS_LIMIT, context->gs.limit);
+    VMREAD(VMCS_GUEST_LDTR_LIMIT, context->ldtr.limit);
+    VMREAD(VMCS_GUEST_TR_LIMIT, context->tr.limit);
+    VMREAD(VMCS_GUEST_GDTR_LIMIT, context->gdtr.limit);
+    VMREAD(VMCS_GUEST_IDTR_LIMIT, context->idtr.limit);
+
+    VMREAD(VMCS_GUEST_ES_ACCESS_RIGHTS, context->es.access_rights);
+    VMREAD(VMCS_GUEST_CS_ACCESS_RIGHTS, context->cs.access_rights);
+    VMREAD(VMCS_GUEST_SS_ACCESS_RIGHTS, context->ss.access_rights);
+    VMREAD(VMCS_GUEST_DS_ACCESS_RIGHTS, context->ds.access_rights);
+    VMREAD(VMCS_GUEST_FS_ACCESS_RIGHTS, context->fs.access_rights);
+    VMREAD(VMCS_GUEST_GS_ACCESS_RIGHTS, context->gs.access_rights);
+    VMREAD(VMCS_GUEST_LDTR_ACCESS_RIGHTS, context->ldtr.access_rights);
+    VMREAD(VMCS_GUEST_TR_ACCESS_RIGHTS, context->tr.access_rights);
+
+    uint64_t dr6_xor_mask = (1ULL<<11) | (1ULL<<16);
+
+    VMREAD(VMCS_GUEST_PENDING_DEBUG_EXCEPTIONS, context->dr6);
+    context->dr6 ^= dr6_xor_mask;
+
+    VMREAD(VMCS_GUEST_ACTIVITY_STATE, context->activity_state);
+    VMREAD(VMCS_GUEST_INTERRUPTIBILITY_STATE, context->interruptibility_state);
+
+    VMREAD(VMCS_GUEST_IA32_SYSENTER_CS, context->sysenter_cs);
+    VMREAD(VMCS_GUEST_IA32_SYSENTER_ESP, context->sysenter_esp);
+    VMREAD(VMCS_GUEST_IA32_SYSENTER_EIP, context->sysenter_eip);
+    VMREAD(VMCS_GUEST_IA32_DEBUGCTL, context->debugctl);
+    VMREAD(VMCS_GUEST_IA32_EFER, context->efer);
+    VMREAD(VMCS_GUEST_IA32_PAT, context->pat);
+    VMREAD(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, context->perf_global_ctrl);
+
+    // Guest RSP will be saved in intel_do_enter_vm()
+    VMREAD(VMCS_GUEST_RIP, context->rip);
+    VMREAD(VMCS_GUEST_RFLAGS, context->rflags);
+
+    // Fails in KVM
+    vmread(VMCS_GUEST_SMBASE, &context->smbase);
+    // Not all CPUs support Intel MPX, may fail
+    vmread(VMCS_GUEST_IA32_BNDCFGS, &context->bndcfgs);
+
+    VMREAD(VMCS_GUEST_PDPTE0, context->pdpte[0]);
+    VMREAD(VMCS_GUEST_PDPTE1, context->pdpte[1]);
+    VMREAD(VMCS_GUEST_PDPTE2, context->pdpte[2]);
+    VMREAD(VMCS_GUEST_PDPTE3, context->pdpte[3]);
+    return 1;
+}
