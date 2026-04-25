@@ -440,7 +440,22 @@ int intel_vmcs_load_guest_context(struct vm_context* context)
     VMWRITE(VMCS_GUEST_IA32_SYSENTER_ESP, context->sysenter_esp);
     VMWRITE(VMCS_GUEST_IA32_SYSENTER_EIP, context->sysenter_eip);
     VMWRITE(VMCS_GUEST_IA32_DEBUGCTL, context->debugctl);
-    VMWRITE(VMCS_GUEST_IA32_EFER, context->efer);
+
+    uint64_t efer = context->efer;
+    VMWRITE(VMCS_GUEST_IA32_EFER, efer);
+
+    uint64_t vm_entry_ctls = 0;
+    VMREAD(VMCS_VM_ENTRY_CTLS, vm_entry_ctls);
+
+    if (efer & EFER_LMA)
+    {
+        vm_entry_ctls |= VM_ENTRY_CTLS_IA32E_MODE_GUEST;
+    }
+    else
+    {
+        vm_entry_ctls &= ~VM_ENTRY_CTLS_IA32E_MODE_GUEST;
+    }
+    VMWRITE(VMCS_VM_ENTRY_CTLS, vm_entry_ctls);
 
     VMWRITE(VMCS_GUEST_IA32_PAT, context->pat);
     VMWRITE(VMCS_GUEST_IA32_PERF_GLOBAL_CTRL, context->perf_global_ctrl);
