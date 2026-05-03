@@ -50,6 +50,9 @@ uint32_t intel_vmx_get_vmcs_revision_id(void)
 }
 
 #define CR4_MCE (1ULL<<6)
+#define CR4_OSFXSR (1ULL<<9)
+#define CR4_OSXMMEXCPT (1ULL<<10)
+#define CR4_OSXSAVE (1ULL<<18)
 static uint64_t old_cr0 = 0;
 static uint64_t old_cr4 = 0;
 static EFI_PHYSICAL_ADDRESS vmxon_area_addr = 0;
@@ -64,11 +67,20 @@ int intel_enter_vmx_operation(EFI_PHYSICAL_ADDRESS vmxon_area)
     write_cr0((old_cr0 | rdmsr(MSR_IA32_VMX_CR0_FIXED0)) & rdmsr(MSR_IA32_VMX_CR0_FIXED1));
 
     uint64_t vmx_cr4_fixed1 = rdmsr(MSR_IA32_VMX_CR4_FIXED1);
-    uint64_t new_cr4 = (old_cr4 | rdmsr(MSR_IA32_VMX_CR4_FIXED0) | CR4_MCE) & vmx_cr4_fixed1;
+    uint64_t extensions_cr4_flags = CR4_OSXSAVE | CR4_OSXMMEXCPT | CR4_OSFXSR;
+    uint64_t new_cr4 = (old_cr4 | rdmsr(MSR_IA32_VMX_CR4_FIXED0) | extensions_cr4_flags | CR4_MCE) & vmx_cr4_fixed1;
 
     if ((new_cr4 & CR4_MCE) == 0)
     {
         print(L"VMX: Machine-check exception handling is not supported in VMX operation!?\r\n");
+        write_cr0(old_cr0);
+        return 0;
+    }
+
+
+    if ((new_cr4 & extensions_cr4_flags) != extensions_cr4_flags)
+    {
+        print(L"VMX: Some requested CPU extensions in CR4 are not supported in VMX operation\r\n");
         write_cr0(old_cr0);
         return 0;
     }

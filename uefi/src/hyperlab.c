@@ -15,6 +15,83 @@
 EFI_SYSTEM_TABLE* SystemTable = NULL;
 
 struct vm_backend* backend = NULL;
+
+void run_vm(struct vm_context* context, struct vm_context* out_context)
+{
+    if (!backend->enter_vm(context, out_context))
+    {
+        print(L"VM-entry fail\r\n");
+
+        print(L"VM-instruction error = ");
+        uint64_t vm_inst_error = 0xaa;
+        if (vmread(VMCS_VM_INSTRUCTION_ERROR, &vm_inst_error))
+        {
+            printf(L"0x%x\r\n", vm_inst_error);
+        }
+        else
+        {
+            print(L"???\r\n");
+        }
+    }
+
+    printf(L"Guest RAX: 0x%x RIP: 0x%x\r\n", out_context->registers[REG_RAX], out_context->rip);
+    print(L"VM-exit reason = ");
+    uint64_t vm_exit_reason = 0xbb;
+    if (vmread(VMCS_EXIT_REASON, &vm_exit_reason))
+    {
+        printf(L"0x%x\r\n", vm_exit_reason);
+    }
+    else
+    {
+        print(L"???\r\n");
+    }
+
+    print(L"Exiting-event ID = ");
+    uint64_t exiting_event_id = 0xcc;
+    if (vmread(VMCS_EXITING_EVENT_ID, &exiting_event_id))
+    {
+        printf(L"0x%x\r\n", exiting_event_id);
+    }
+    else
+    {
+        print(L"???\r\n");
+    }
+
+    print(L"Exiting-event error code = ");
+    uint64_t exiting_event_error_code = 0xdd;
+    if (vmread(VMCS_EXITING_EVENT_ERROR_CODE, &exiting_event_error_code))
+    {
+        printf(L"0x%x\r\n", exiting_event_error_code);
+    }
+    else
+    {
+        print(L"???\r\n");
+    }
+
+
+    print(L"Original-event ID = ");
+    uint64_t original_event_id = 0xcc;
+    if (vmread(VMCS_ORIGINAL_EVENT_ID, &original_event_id))
+    {
+        printf(L"0x%x\r\n", original_event_id);
+    }
+    else
+    {
+        print(L"???\r\n");
+    }
+
+    print(L"Original-event error code = ");
+    uint64_t original_event_error_code = 0xdd;
+    if (vmread(VMCS_ORIGINAL_EVENT_ERROR_CODE, &original_event_error_code))
+    {
+        printf(L"0x%x\r\n", original_event_error_code);
+    }
+    else
+    {
+        print(L"???\r\n");
+    }
+}
+
 EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTable)
 {
     (void)ImageHandle;
@@ -122,16 +199,22 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
     int i = 0;
     guest_code[i++] = 0x0f;
     guest_code[i++] = 0x01;
+    guest_code[i++] = 0xd0;
+    guest_code[i++] = 0x0f;
+    guest_code[i++] = 0x01;
     guest_code[i++] = 0xc1;
 
     struct vm_context context;
+    struct vm_context out_context;
     SystemTable->BootServices->SetMem(&context, sizeof(context), 0);
+    SystemTable->BootServices->SetMem(&out_context, sizeof(out_context), 0);
 
     context.cr0 = read_cr0();
     context.cr3 = 0;
     context.cr4 = read_cr4();
     context.dr6 = (1ULL<<11) | (1ULL<<16);
     context.dr7 = (1ULL<<10);
+
 
     context.es.base = 0;
     context.cs.base = 0;
@@ -157,7 +240,8 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
     context.es.attributes = data_segment_attributes;
     context.cs.attributes =
         backend->compute_segment_attributes(0, 11, ATTR_CODE_OR_DATA_SEGMENT | ATTR_PRESENT | ATTR_64BIT_MODE_ACTIVE | ATTR_GRANULARITY);
-    context.ss.attributes = data_segment_attributes;
+    context.ss.attributes =
+        backend->compute_segment_attributes(0, 3, ATTR_CODE_OR_DATA_SEGMENT | ATTR_PRESENT | ATTR_32BIT_SEGMENT | ATTR_GRANULARITY);
     context.ds.attributes = data_segment_attributes;
     context.fs.attributes = data_segment_attributes;
     context.gs.attributes = data_segment_attributes;
@@ -182,83 +266,48 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
 #define MSR_IA32_PAT 0x277
     context.pat = rdmsr(MSR_IA32_PAT);
 
-    struct vm_context out_context;
+    void* guest_in_xsave_state_area_unaligned = NULL;
+    void* guest_out_xsave_state_area_unaligned = NULL;
 
-    if (backend->enter_vm(&context, &out_context))
     {
-        print(L"VM-entry OK!\r\n");
-    }
-    else
-    {
-        print(L"VM-entry fail\r\n");
-    }
+        uint32_t xsave_enabled_features_size = 0;
 
-    print(L"VM-instruction error = ");
-    uint64_t vm_inst_error = 0xaa;
-    if (vmread(VMCS_VM_INSTRUCTION_ERROR, &vm_inst_error))
-    {
-        printf(L"0x%x\r\n", vm_inst_error);
-    }
-    else
-    {
-        print(L"???\r\n");
-    }
+        __asm__("cpuid":"=b"(xsave_enabled_features_size):"a"(0xd),"c"(0):"rdx");
 
-    print(L"VM-exit reason = ");
-    uint64_t vm_exit_reason = 0xbb;
-    if (vmread(VMCS_EXIT_REASON, &vm_exit_reason))
-    {
-        printf(L"0x%x\r\n", vm_exit_reason);
-    }
-    else
-    {
-        print(L"???\r\n");
-    }
+        context.xsave_state_area_size = xsave_enabled_features_size;
+        out_context.xsave_state_area_size = xsave_enabled_features_size;
 
-    print(L"Exiting-event ID = ");
-    uint64_t exiting_event_id = 0xcc;
-    if (vmread(VMCS_EXITING_EVENT_ID, &exiting_event_id))
-    {
-        printf(L"0x%x\r\n", exiting_event_id);
-    }
-    else
-    {
-        print(L"???\r\n");
+        EFI_STATUS status = SystemTable->BootServices->AllocatePool(EfiRuntimeServicesData, context.xsave_state_area_size+0x40, &guest_in_xsave_state_area_unaligned);
+
+        if (status != EFI_SUCCESS)
+        {
+            printf(L"Could not allocate memory for guest input XSAVE state area, status = 0x%x\r\n", status);
+            halt();
+        }
+
+        status = SystemTable->BootServices->AllocatePool(EfiRuntimeServicesData, context.xsave_state_area_size+0x40, &guest_out_xsave_state_area_unaligned);
+
+        if (status != EFI_SUCCESS)
+        {
+            printf(L"Could not allocate memory for guest output XSAVE state area, status = 0x%x\r\n", status);
+            halt();
+        }
+
+        SystemTable->BootServices->SetMem(guest_in_xsave_state_area_unaligned, context.xsave_state_area_size+0x40, 0);
+        SystemTable->BootServices->SetMem(guest_out_xsave_state_area_unaligned, context.xsave_state_area_size+0x40, 0);
+
+        context.xsave_state_area = (void*)(((size_t)guest_in_xsave_state_area_unaligned + 0x40 - 1) & ~0x3fULL);
+        out_context.xsave_state_area = (void*)(((size_t)guest_out_xsave_state_area_unaligned + 0x40 - 1) & ~0x3fULL);
+
+        printf(L"Guest input XSAVE area @ 0x%x\r\n", context.xsave_state_area);
+        printf(L"Guest output XSAVE area @ 0x%x\r\n", out_context.xsave_state_area);
+
+        __asm__("xrstor64 [%0]\n"
+                "xsave64 [%0]\n"::"r"(context.xsave_state_area),"a"(UINT32_MAX),"d"(UINT32_MAX):"memory");
+
     }
 
-    print(L"Exiting-event error code = ");
-    uint64_t exiting_event_error_code = 0xdd;
-    if (vmread(VMCS_EXITING_EVENT_ERROR_CODE, &exiting_event_error_code))
-    {
-        printf(L"0x%x\r\n", exiting_event_error_code);
-    }
-    else
-    {
-        print(L"???\r\n");
-    }
-
-
-    print(L"Original-event ID = ");
-    uint64_t original_event_id = 0xcc;
-    if (vmread(VMCS_ORIGINAL_EVENT_ID, &original_event_id))
-    {
-        printf(L"0x%x\r\n", original_event_id);
-    }
-    else
-    {
-        print(L"???\r\n");
-    }
-
-    print(L"Original-event error code = ");
-    uint64_t original_event_error_code = 0xdd;
-    if (vmread(VMCS_ORIGINAL_EVENT_ERROR_CODE, &original_event_error_code))
-    {
-        printf(L"0x%x\r\n", original_event_error_code);
-    }
-    else
-    {
-        print(L"???\r\n");
-    }
+    run_vm(&context, &out_context);
 
     halt();
     __builtin_unreachable();

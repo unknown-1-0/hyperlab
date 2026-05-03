@@ -77,6 +77,9 @@ struct vm_context
 
     uint32_t activity_state;
     uint32_t interruptibility_state;
+
+    uint32_t xsave_state_area_size;
+    void* xsave_state_area;
 };
 
 #endif
