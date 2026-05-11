@@ -132,7 +132,7 @@ static struct idt_entry* idt = NULL;
 int setup_idt(EFI_SYSTEM_TABLE* SystemTable)
 {
     const size_t idt_entries = sizeof(exception_handlers)/sizeof(exception_handlers[0]);
-    if (SystemTable->BootServices->AllocatePool(EfiRuntimeServicesData, idt_entries*sizeof(*idt), (VOID**)&idt) != EFI_SUCCESS)
+    if (SystemTable->BootServices->AllocatePool(EfiLoaderData, idt_entries*sizeof(*idt), (VOID**)&idt) != EFI_SUCCESS)
     {
         return 0;
     }

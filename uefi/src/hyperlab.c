@@ -150,7 +150,7 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
     EFI_PHYSICAL_ADDRESS guest_memory = 0;
     // 4 page tables (PML4, PDPT, PD, PT) + 1 code and 1 data page
     #define GUEST_PAGES_COUNT (4+1+1)
-    EFI_STATUS status = SystemTable->BootServices->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData, GUEST_PAGES_COUNT, &guest_memory);
+    EFI_STATUS status = SystemTable->BootServices->AllocatePages(AllocateAnyPages, EfiLoaderData, GUEST_PAGES_COUNT, &guest_memory);
     SystemTable->BootServices->SetMem((void*)guest_memory, 0x1000 * GUEST_PAGES_COUNT, 0);
 
     if (status != EFI_SUCCESS)
@@ -277,7 +277,7 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
         context.xsave_state_area_size = xsave_enabled_features_size;
         out_context.xsave_state_area_size = xsave_enabled_features_size;
 
-        EFI_STATUS status = SystemTable->BootServices->AllocatePool(EfiRuntimeServicesData, context.xsave_state_area_size+0x40, &guest_in_xsave_state_area_unaligned);
+        EFI_STATUS status = SystemTable->BootServices->AllocatePool(EfiLoaderData, context.xsave_state_area_size+0x40, &guest_in_xsave_state_area_unaligned);
 
         if (status != EFI_SUCCESS)
         {
@@ -285,7 +285,7 @@ EFI_STATUS hyperlab_entry(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* EFISystemTab
             halt();
         }
 
-        status = SystemTable->BootServices->AllocatePool(EfiRuntimeServicesData, context.xsave_state_area_size+0x40, &guest_out_xsave_state_area_unaligned);
+        status = SystemTable->BootServices->AllocatePool(EfiLoaderData, context.xsave_state_area_size+0x40, &guest_out_xsave_state_area_unaligned);
 
         if (status != EFI_SUCCESS)
         {

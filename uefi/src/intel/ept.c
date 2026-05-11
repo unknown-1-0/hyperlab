@@ -10,7 +10,7 @@
 int intel_ept_alloc_page(EFI_PHYSICAL_ADDRESS* out_addr)
 {
     EFI_PHYSICAL_ADDRESS addr = 0;
-    EFI_STATUS status = BootServices->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData, 1, &addr);
+    EFI_STATUS status = BootServices->AllocatePages(AllocateAnyPages, EfiLoaderData, 1, &addr);
 
     if (status != EFI_SUCCESS)
     {

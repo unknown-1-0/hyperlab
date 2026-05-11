@@ -53,7 +53,7 @@ int intel_setup_xsave(void)
     xsave_state_area_size = xsave_enabled_features_size;
     host_xsave_state_area_unaligned = NULL;
 
-    EFI_STATUS status = BootServices->AllocatePool(EfiRuntimeServicesData, xsave_state_area_size+0x40, &host_xsave_state_area_unaligned);
+    EFI_STATUS status = BootServices->AllocatePool(EfiLoaderData, xsave_state_area_size+0x40, &host_xsave_state_area_unaligned);
 
     if (status != EFI_SUCCESS)
     {
@@ -84,7 +84,7 @@ int intel_init_backend(EFI_SYSTEM_TABLE* SystemTable)
 
     EFI_PHYSICAL_ADDRESS vmxon_area = 0;
 
-    if (BootServices->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData, 1, &vmxon_area) != EFI_SUCCESS)
+    if (BootServices->AllocatePages(AllocateAnyPages, EfiLoaderData, 1, &vmxon_area) != EFI_SUCCESS)
     {
         print(L"Failed to allocate a page for VMXON area\r\n");
         return 0;
@@ -122,7 +122,7 @@ int intel_create_vm(void)
         return 0;
     }
 
-    if (BootServices->AllocatePages(AllocateAnyPages, EfiRuntimeServicesData, 1, &cur_vmcs) != EFI_SUCCESS)
+    if (BootServices->AllocatePages(AllocateAnyPages, EfiLoaderData, 1, &cur_vmcs) != EFI_SUCCESS)
     {
         print(L"Failed to allocate a page for VMCS\r\n");
         return 0;
