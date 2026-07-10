@@ -21,6 +21,8 @@ push rcx
 push rax
 mov ecx, \exception_number
 mov rdx, rsp
+and rsp, ~0xf
+push 0
 jmp handle_exception
 .endm
 
