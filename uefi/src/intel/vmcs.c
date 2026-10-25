@@ -20,12 +20,13 @@
 #define VMREAD(field, value) do \
 { \
     uint64_t vmcs_field = (field); \
-    void* vmcs_field_value_ptr = &(value); \
-    if (!vmread(vmcs_field, vmcs_field_value_ptr)) \
+    uint64_t vmcs_field_value = 0; \
+    if (!vmread(vmcs_field, &vmcs_field_value)) \
     { \
         printf(L"VMCS: VMREAD of field 0x%x failed\r\n", vmcs_field); \
         return 0; \
     } \
+    (value) = vmcs_field_value; \
 } while(0)
 
 #define VMWRITE(field, value) do \
